@@ -1,0 +1,22 @@
+[project]
+name = "black-box-labs"
+version = "0.1.0"
+description = "Autonomous Behavioral Boundary Mapping for Vision-Language Models"
+requires-python = ">=3.13"
+dependencies = [
+    "jinja2>=3.1.6",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.2",
+    "openai>=2.21.0",
+    "pillow>=12.1.1",
+    "plotly>=6.5.2",
+    "playwright>=1.40.0",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.0",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=0.23.0",
+    "python-dotenv>=1.2.1",
+    "streamlit>=1.54.0",
+    "torch>=2.1.0",
+    "transformers>=4.36.0",
+]

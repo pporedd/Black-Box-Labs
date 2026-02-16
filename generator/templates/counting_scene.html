@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: {{ canvas_width }}px;
+    height: {{ canvas_height }}px;
+    overflow: hidden;
+    background-color: {{ background_color }};
+  }
+
+  .canvas {
+    position: relative;
+    width: {{ canvas_width }}px;
+    height: {{ canvas_height }}px;
+  }
+
+  .item {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .item-circle {
+    border-radius: 50%;
+  }
+
+  .item-triangle {
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+    border-left: {{ item_half_size }}px solid transparent;
+    border-right: {{ item_half_size }}px solid transparent;
+    border-bottom: {{ item_size }}px solid {{ item_color }};
+  }
+</style>
+</head>
+<body>
+  <div class="canvas">
+    {# ── Primary Items ── #}
+    {% for item in items %}
+    <div class="item {% if item.shape == 'circle' %}item-circle{% elif item.shape == 'triangle' %}item-triangle{% endif %}"
+         style="
+           left: {{ item.x - item.width // 2 }}px;
+           top: {{ item.y - item.height // 2 }}px;
+           width: {{ item.width }}px;
+           height: {{ item.height }}px;
+           {% if item.shape != 'triangle' %}
+           background-color: {{ item.color }};
+           {% endif %}
+           z-index: {{ item.z_index }};
+           transform: rotate({{ item.rotation_deg }}deg);
+         ">
+    </div>
+    {% endfor %}
+
+    {# ── Distractors ── #}
+    {% for d in distractors %}
+    <div class="item {% if d.shape == 'circle' %}item-circle{% elif d.shape == 'triangle' %}item-triangle{% endif %}"
+         style="
+           left: {{ d.x - d.width // 2 }}px;
+           top: {{ d.y - d.height // 2 }}px;
+           width: {{ d.width }}px;
+           height: {{ d.height }}px;
+           {% if d.shape != 'triangle' %}
+           background-color: {{ d.color }};
+           {% endif %}
+           z-index: {{ d.z_index }};
+           transform: rotate({{ d.rotation_deg }}deg);
+         ">
+    </div>
+    {% endfor %}
+  </div>
+</body>
+</html>
