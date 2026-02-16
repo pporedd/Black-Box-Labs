@@ -127,20 +127,38 @@ class ScientistAgent:
         message = response.choices[0].message
 
         # Store assistant response in history
-        self.conversation_history.append({
-            "role": "assistant",
-            "content": message.content or "",
-            "tool_calls": [
-                {
+        # Prepare tool calls for history, sanitizing arguments
+        history_tool_calls = []
+        if message.tool_calls:
+            for tc in message.tool_calls:
+                # 1. Parse/Repair
+                try:
+                    # Try standard load first
+                    args_dict = json.loads(tc.function.arguments)
+                except json.JSONDecodeError:
+                    # Fallback to client's repair if available, or empty
+                    try:
+                        args_dict = self.client._repair_json(tc.function.arguments)
+                    except Exception:
+                        args_dict = {}
+
+                # 2. Re-serialize to ensures valid JSON string in history
+                clean_args_str = json.dumps(args_dict)
+
+                history_tool_calls.append({
                     "id": tc.id,
                     "type": "function",
                     "function": {
                         "name": tc.function.name,
-                        "arguments": tc.function.arguments,
+                        "arguments": clean_args_str,
                     },
-                }
-                for tc in (message.tool_calls or [])
-            ] if message.tool_calls else None,
+                })
+
+        # Store assistant response in history
+        self.conversation_history.append({
+            "role": "assistant",
+            "content": message.content or "",
+            "tool_calls": history_tool_calls if history_tool_calls else None,
         })
 
         self.iteration += 1

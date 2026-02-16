@@ -242,6 +242,11 @@ class BoundarySearchOrchestrator:
         image = render_scene(scene)
         result = self.evaluator.evaluate(image, scene.question, scene.ground_truth_answer)
 
+        # Update state for UI visibility
+        self.state.latest_image = image
+        self.state.latest_scene = scene
+        self.state.latest_eval = result
+
         setattr(self.state.params, variable, old_value)  # Restore
         return result.passed
 
@@ -257,6 +262,7 @@ class BoundarySearchOrchestrator:
         action = self.agent.propose_next_action(context)
 
         if action["type"] == "message":
+            print(f"\n💬 [AGENT MESSAGE] {action['content']}")
             return {
                 "type": "message",
                 "content": action["content"],
@@ -266,7 +272,9 @@ class BoundarySearchOrchestrator:
         # Execute tool calls
         results = []
         for call in action["calls"]:
+            print(f"\n🛠️ [TOOL EXECUTION] {call['name']}({call['arguments']})")
             result = self._dispatch_tool(call["name"], call["arguments"])
+            print(f"   -> Result: {result[:200]}..." if len(result) > 200 else f"   -> Result: {result}")
             self.agent.report_tool_result(call["id"], result)
             results.append({
                 "tool": call["name"],

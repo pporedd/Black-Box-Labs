@@ -91,12 +91,71 @@ class NemotronClient:
 
         calls = []
         for tc in message.tool_calls:
+            try:
+                args = json.loads(tc.function.arguments)
+            except json.JSONDecodeError:
+                # Attempt to repair malformed JSON from the model
+                try:
+                    args = self._repair_json(tc.function.arguments)
+                except Exception:
+                    # If repair fails, return empty dict or raw string (to avoid crash)
+                    print(f"Failed to parse tool arguments: {tc.function.arguments}")
+                    args = {}
+
             calls.append({
                 "id": tc.id,
                 "name": tc.function.name,
-                "arguments": json.loads(tc.function.arguments),
+                "arguments": args,
             })
         return calls
+
+    def _repair_json(self, json_str: str) -> dict[str, Any]:
+        """Attempt to repair common JSON syntax errors from LLMs."""
+        import json
+        import re
+
+        # Strip markdown code blocks
+        if "```" in json_str:
+            pattern = r"```(?:json)?\s*(\{.*?\})\s*```"
+            match = re.search(pattern, json_str, re.DOTALL)
+            if match:
+                json_str = match.group(1)
+
+        json_str = json_str.strip()
+
+        # Strategy 1: Attempt to parse the whole string
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            pass
+
+        # Strategy 2: Handle concatenated JSONs (e.g. "{...}{...}")
+        # We take the *last* valid JSON object, assuming it's the correction
+        # or the most recent intent.
+        potential_jsons = []
+        
+        # Regex to find top-level braces (non-nested assumption for simplicity, or greedy)
+        # This regex tries to find {...} blocks. It's not perfect for nesting.
+        # But for tool args usually simple.
+        candidates = re.findall(r'\{.*?\}', json_str)
+        if hasattr(re, 'DOTALL'):
+             candidates = re.findall(r'\{.*?\}', json_str, re.DOTALL)
+        
+        for candidate in candidates:
+             try:
+                 # Clean candidate keys (single quotes)
+                 if "'" in candidate and '"' not in candidate:
+                     candidate = candidate.replace("'", '"')
+                 return json.loads(candidate)
+             except json.JSONDecodeError:
+                 continue
+        
+        # Strategy 3: Brute force cleanup (single quotes)
+        if "'" in json_str and '"' not in json_str:
+             json_str = json_str.replace("'", '"')
+             return json.loads(json_str)
+        
+        raise ValueError("Could not repair JSON")
 
     def extract_text(self, response) -> str:
         """Extract plain text content from a response."""

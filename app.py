@@ -19,6 +19,25 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
 from PIL import Image
+import asyncio
+import sys
+import os
+
+# Fix for Playwright on Windows: Force ProactorEventLoop
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    
+    # Fix for LibVIPS (Moondream dependency)
+    # Try to locate vips-dev-8.18/bin or similar in Documents
+    # Hardcoded path based on user logs, but could be made dynamic
+    vips_bin = r"C:\Users\tardi\OneDrive\Documents\vips-dev-8.18\bin"
+    if os.path.exists(vips_bin):
+        if hasattr(os, "add_dll_directory"):
+            # Must keep reference to prevent GC!
+            global _vips_dir_handle
+            _vips_dir_handle = os.add_dll_directory(vips_bin)
+        os.environ["PATH"] = vips_bin + os.pathsep + os.environ["PATH"]
+
 
 # ── Page Config ──────────────────────────────────────────────────────
 st.set_page_config(
@@ -446,11 +465,28 @@ def initialize_system():
             orch = BoundarySearchOrchestrator(evaluator=evaluator, agent=agent)
 
             st.session_state.orchestrator = orch
+            
+            # Generate initial state for UI visibility
+            from generator.state import calculate_scene
+            from generator.renderer import render_scene
+            
+            initial_scene = calculate_scene(orch.state.params, seed=0)
+            initial_image = render_scene(initial_scene)
+            
+            orch.state.latest_scene = initial_scene
+            orch.state.latest_image = initial_image
+            st.session_state.current_image = initial_image
+
             st.session_state.model_loaded = True
             st.session_state.is_running = True
 
         except Exception as e:
-            st.session_state.error_message = str(e)
+            import traceback
+            traceback.print_exc()
+            msg = str(e)
+            if not msg:
+                msg = f"{type(e).__name__}: {e}"
+            st.session_state.error_message = msg
 
 
 def execute_step():
@@ -506,7 +542,12 @@ def execute_step():
             st.session_state.is_running = False
 
     except Exception as e:
-        st.session_state.error_message = str(e)
+        import traceback
+        traceback.print_exc()
+        msg = str(e)
+        if not msg:
+            msg = f"{type(e).__name__}: {e}"
+        st.session_state.error_message = msg
         st.session_state.is_running = False
 
 

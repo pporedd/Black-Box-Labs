@@ -39,7 +39,7 @@ class MoondreamEvaluator:
 
     def __init__(self, device: Optional[str] = None):
         import torch
-        from transformers import AutoModelForCausalLM, AutoTokenizer
+        from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel, GenerationConfig
 
         self.device = device or settings.VLM_DEVICE
         if self.device == "cuda" and not torch.cuda.is_available():
@@ -47,14 +47,33 @@ class MoondreamEvaluator:
 
         print(f"[MoondreamEvaluator] Loading {settings.VLM_MODEL_ID} on {self.device}...")
 
+        # ── MONKEY PATCH for transformers >= 4.41 compatibility ──
+        # Fixes: 'HfMoondream' object has no attribute 'all_tied_weights_keys'
+        if not hasattr(PreTrainedModel, "all_tied_weights_keys"):
+            @property
+            def all_tied_weights_keys(self):
+                return {}
+            PreTrainedModel.all_tied_weights_keys = all_tied_weights_keys
+
+        # Load weights and move to device manually
+        # device_map in transformers can be buggy with custom Moondream implementation
         self.model = AutoModelForCausalLM.from_pretrained(
             settings.VLM_MODEL_ID,
             revision=settings.VLM_REVISION,
             trust_remote_code=True,
             attn_implementation=settings.VLM_ATTN_IMPLEMENTATION,
             torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
-            device_map={"": self.device},
-        )
+        ).to(self.device)
+
+        # Explicitly set generation config to prevent 'NoneType' object has no attribute 'keys'
+        try:
+            self.model.generation_config = GenerationConfig.from_pretrained(
+                settings.VLM_MODEL_ID, 
+                trust_remote_code=True
+            )
+        except Exception:
+            # Fallback to a basic config if remote loading fails
+            self.model.generation_config = GenerationConfig()
 
         self.tokenizer = AutoTokenizer.from_pretrained(
             settings.VLM_MODEL_ID,

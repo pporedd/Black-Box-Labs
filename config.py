@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 
     # ── Scientist Agent (Nemotron via OpenRouter) ───────────────────
     OPENROUTER_API_KEY: str = ""
-    NEMOTRON_MODEL: str = "nvidia/llama-3.1-nemotron-ultra-253b-v1"
+    NEMOTRON_MODEL: str = "nvidia/nemotron-nano-12b-v2-vl:free"
     NEMOTRON_BASE_URL: str = "https://openrouter.ai/api/v1"
     NEMOTRON_TEMP: float = 0.3
     NEMOTRON_MAX_TOKENS: int = 4096
